@@ -105,7 +105,7 @@ nextBegin:
     // handle integers and front part of floats
     if (isDigit(c)) {
         tmpStr += c;
-        while (isDigit((c = utf8getc(s, e))) && s < end && !e) tmpStr += c;
+        while (isDigit((c = utf8getc(s, e))) && s <= end && !e) tmpStr += c;
         if(e) return Token();
 
         if (c != '.' || s >= end) return Token(Int, tmpStr);
@@ -119,14 +119,13 @@ nextBegin:
         if(isDigit(c) && s <= end) {
             tmpStr += c;
             // append all digits after the '.' to tmpStr
-            while (isDigit((c = utf8getc(s, e))) && s < end && !e) tmpStr += c;
+            while (isDigit((c = utf8getc(s, e))) && s <= end && !e) tmpStr += c;
             if(e) return Token();
 
             return Token(Float, tmpStr);
         } else Token(Error, std::u32string() + U"expected digit after '.', got U" + (s > end ? U"EOF" : std::u32string() + U"'" + c + U"'"));
     }
 
-    // TODO: all code below still needs a lot of work
     if (c == '"') {
         if (s >= end) Token(Error, U"expected string after '\"', got EOF");
 
@@ -134,6 +133,7 @@ nextBegin:
             tmpStr += c == '\\' ? utf8getc(s, e) : c;
         }
         // TODO: this is kinda broken, but i dont know how to properly do this rn (it works most of the time)
+        // (should fail if it falls off and reads a '"', TODO: verify that)
         if(s > end && c != '"') return Token(Error, U"expected string after '\"', got EOF");
 
         return Token(String, tmpStr);
