@@ -43,12 +43,19 @@ constexpr inline uint32_t utf8getc(const uint8_t *&s, int &e) {
     return c;
 }
 
-constexpr inline bool isWhitespace(uint32_t c) {
-    //TODO
+constexpr inline bool isWhitespace(char32_t c) {
+    for(uint32_t trans : {0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085, 0x00A0, 0x1680,
+        0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x200B, 0x200C,
+        0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF}) if(c == trans) return true;
+    if(c == U',') return true;
     return false;
 }
 
-constexpr inline bool isDigit(uint32_t c) {
+    constexpr inline bool isIdentifierChar(char32_t c){
+        return !isWhitespace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != '{' && c != '}' && c != '#' && c != '*';
+    }
+
+constexpr inline bool isDigit(char32_t c) {
     return c >= '0' && c <= '9';
 }
 
@@ -57,7 +64,6 @@ constexpr inline bool isDigit(uint32_t c) {
  * Errors are stored in `e`.
  */
 inline Token next(const uint8_t *&s, uint_fast32_t length, int &e) {
-    const Type t = LeftParen;
     const uint8_t *end = s + length;
 
     char32_t c = utf8getc(s, e);
@@ -140,12 +146,12 @@ nextBegin:
         c = utf8getc(s, e);
         if(e) return Token();
 
-        return Token(Character, std::u32string(1, c));
+        return Token(Char, std::u32string(1, c));
     }
 
     tmpStr += c;
     // handle identifiers
-    while (!isWhitespace((c = utf8getc(s, e))) && !isSpecialChar(c) && !e && s <= end) tmpStr += c;
+    while (isIdentifierChar((c = utf8getc(s, e))) && !e && s <= end) tmpStr += c;
     if(e) return Token();
 
     return Token(Identifier, tmpStr);
