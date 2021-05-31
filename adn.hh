@@ -1,10 +1,11 @@
 #pragma once
 #include <string>
+#include <vector>
 #include <utf8.hh>
 
 namespace {
 namespace Adn {
-namespace Token {
+namespace Lexer {
 enum Type {
     Error,
 
@@ -63,9 +64,7 @@ constexpr inline bool isDigit(char32_t c) {
  * Parses the next `Token` out of the buffer `s` with the length `length`.
  * Errors are stored in `e`.
  */
-inline Token next(const uint8_t *&s, uint_fast32_t length, int &e) {
-    const uint8_t *end = s + length;
-
+inline Token next(const uint8_t *&s, const uint8_t *end, int &e) {
     char32_t c = utf8getc(s, e);
     if(e) return Token();
 
@@ -156,6 +155,15 @@ nextBegin:
 
     return Token(Identifier, tmpStr);
 }
+
+    inline std::vector<Token> lex(const uint8_t *s, uint_fast32_t length, int &err) {
+    const uint8_t *end = s + length;
+    std::vector<Token> tokens;
+    do {
+        tokens.push_back(next(s, end, err));
+    } while(!err && tokens.back().type != EndOfFile);
+        return tokens;
+    }
 }
 }
 }
