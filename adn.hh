@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <utf8.hh>
 
 namespace {
 namespace Adn {
@@ -38,12 +37,6 @@ public:
     inline Token(Type t=Error, std::u32string v=std::u32string()) : type(t), value(v) {}
 };
 
-constexpr inline uint32_t utf8getc(const uint8_t *&s, int &e) {
-    uint32_t c = 0;
-    s = utf8_decode(s, c, e);
-    return c;
-}
-
 constexpr inline bool isWhitespace(char32_t c) {
     for(uint32_t trans : {0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085, 0x00A0, 0x1680,
         0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x200B, 0x200C,
@@ -61,33 +54,27 @@ constexpr inline bool isDigit(char32_t c) {
 }
 
 /**
- * Parses the next `Token` out of the buffer `s` with the length `length`.
- * Errors are stored in `e`.
+ * Parses the next `Token` out of the buffer `s` with the end pointer `end`.
+ * Errors are stored in `err`.
  */
-inline Token next(const uint8_t *&s, const uint8_t *end, int &e) {
-    char32_t c = utf8getc(s, e);
-    if(e) return Token();
-
-nextBegin:
-
+inline Token next(const char32_t *&s, const char32_t *end) {
     // eat whitespace
-    while (isWhitespace(c) && s < end && !e) c = utf8getc(s, e);
-    if(e) return Token();
+    while (isWhitespace(*s) && s < end) s++;
 
-    // comments
-    if (c == ';') {
-        // eat up until end of line
-        while (c != '\n' && s < end && !e) c = utf8getc(s, e);
-        if(e) return Token();
-
-        goto nextBegin;
+    // eat comments
+    if (*s == ';') {
+        while (*s != '\n' && s < end) s++;
+        return next(s, end);
     }
 
     // handle end of file
     if (s >= end) return Token(EndOfFile, U"end of file");
 
+    char32_t c;
+    std::u32string tmpStr;
+
     // handle parentheses and brackets
-    switch (c) {
+    switch (c = *s++) {
         case '(':  return Token(ParenLeft, U"(");
         case ')':  return Token(ParenRight, U")");
         case '[':  return Token(BracketLeft, U"[");
@@ -97,73 +84,46 @@ nextBegin:
         case '*':  return Token(Asterisk, U"*");
         case '#':  return Token(Hash, U"#");
         case '\'': return Token(SingleQuote, U"'");
+        case '\\':
+            if (s >= end) Token(Error, U"expected char after '\"', got EOF");
+            return Token(Char, std::u32string(1, *s++));
+        case '"':
+            // handle strings
+            if (s >= end) Token(Error, U"expected string after '\"', got EOF");
+            while (s < end && (c = *s++) != '"') {
+                tmpStr += c == '\\' ? *s++ : c;
+            }
+            if(s >= end && c != '"') return Token(Error, U"expected string after '\"', got EOF");
+            return Token(String, tmpStr);
+        case '0'...'9':
+            // handle integers and front half of floats
+            do { tmpStr += c; } while (s < end && isDigit((c = *s++)));
+            if (c != '.' || s >= end) return Token(Int, tmpStr);
+        case '.':
+            // handle back half of floats
+            tmpStr += '.';
+            c = *s++;
+            if(isDigit(c) && s <= end) {
+                do { tmpStr += c; } while (isDigit(c = *s++) && s <= end);
+                return Token(Float, tmpStr);
+            } else return Token(Error, std::u32string() + U"expected digit after '.', got " + (s > end ? U"EOF" : std::u32string() + U"'" + c + U"'"));
+        default:
+            // handle identifiers
+            do {
+                tmpStr += c;
+            } while (s < end && isIdentifierChar(c = *s++));
+            return Token(Identifier, tmpStr);
     }
-
-    // helper variable for temporary string storage
-    std::u32string tmpStr;
-
-    // handle integers and front part of floats
-    if (isDigit(c)) {
-        tmpStr += c;
-        while (isDigit((c = utf8getc(s, e))) && s <= end && !e) tmpStr += c;
-        if(e) return Token();
-
-        if (c != '.' || s >= end) return Token(Int, tmpStr);
-    }
-
-    // handle floats
-    if(c == '.') {
-        tmpStr += '.';
-        c = utf8getc(s, e);
-        if(e) return Token();
-        if(isDigit(c) && s <= end) {
-            tmpStr += c;
-            // append all digits after the '.' to tmpStr
-            while (isDigit((c = utf8getc(s, e))) && s <= end && !e) tmpStr += c;
-            if(e) return Token();
-
-            return Token(Float, tmpStr);
-        } else Token(Error, std::u32string() + U"expected digit after '.', got U" + (s > end ? U"EOF" : std::u32string() + U"'" + c + U"'"));
-    }
-
-    if (c == '"') {
-        if (s >= end) Token(Error, U"expected string after '\"', got EOF");
-
-        while ((c = utf8getc(s, e)) != '"' && s <= end) {
-            tmpStr += c == '\\' ? utf8getc(s, e) : c;
-        }
-        // TODO: this is kinda broken, but i dont know how to properly do this rn (it works most of the time)
-        // (should fail if it falls off and reads a '"', TODO: verify that)
-        if(s > end && c != '"') return Token(Error, U"expected string after '\"', got EOF");
-
-        return Token(String, tmpStr);
-    }
-
-    if (c == '\\') {
-        if (s >= end) Token(Error, U"expected char after '\"', got EOF");
-
-        c = utf8getc(s, e);
-        if(e) return Token();
-
-        return Token(Char, std::u32string(1, c));
-    }
-
-    tmpStr += c;
-    // handle identifiers
-    while (isIdentifierChar((c = utf8getc(s, e))) && !e && s <= end) tmpStr += c;
-    if(e) return Token();
-
-    return Token(Identifier, tmpStr);
 }
 
-    inline std::vector<Token> lex(const uint8_t *s, uint_fast32_t length, int &err) {
-    const uint8_t *end = s + length;
+inline std::vector<Token> lex(const char32_t *s, uint_fast32_t length) {
+    const char32_t *end = s + length;
     std::vector<Token> tokens;
     do {
-        tokens.push_back(next(s, end, err));
-    } while(!err && tokens.back().type != EndOfFile);
-        return tokens;
-    }
+        tokens.push_back(next(s, end));
+    } while(tokens.back().type != EndOfFile);
+    return tokens;
+}
 }
 }
 }
