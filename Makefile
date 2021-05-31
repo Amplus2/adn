@@ -1,12 +1,12 @@
 CXX ?= c++
-CXXFLAGS ?= -O2
-CXXFLAGS += -std=c++20 -I. -Iutf8
+CXXFLAGS ?= -O2 -Wall -Wextra
+CXXFLAGS += -std=c++20
 
 test: testexe
 	./testexe
 
-testexe: adn.hh test/main.cc
-	$(CXX) $(CXXFLAGS) test/main.cc -o testexe
+testexe: adn.hh test.cc
+	$(CXX) $(CXXFLAGS) test.cc -o testexe
 
 clean:
 	rm -f testexe
