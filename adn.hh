@@ -83,12 +83,12 @@ nextBegin:
 
     // handle parentheses and brackets
     switch (c) {
-        case '(':  return Token(LeftParen, U"(");
-        case ')':  return Token(RightParen, U")");
-        case '[':  return Token(LeftBracket, U"[");
-        case ']':  return Token(RightBracket, U"]");
-        case '{':  return Token(LeftCurly, U"{");
-        case '}':  return Token(RightCurly, U"}");
+        case '(':  return Token(ParenLeft, U"(");
+        case ')':  return Token(ParenRight, U")");
+        case '[':  return Token(BracketLeft, U"[");
+        case ']':  return Token(BracketRight, U"]");
+        case '{':  return Token(CurlyLeft, U"{");
+        case '}':  return Token(CurlyRight, U"}");
         case '*':  return Token(Asterisk, U"*");
         case '#':  return Token(Hash, U"#");
         case '\'': return Token(SingleQuote, U"'");
