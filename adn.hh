@@ -99,6 +99,7 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             // handle integers and front half of floats
             do { tmpStr += c; } while (s < end && isDigit((c = *s++)));
             if (c != '.' || s >= end) return Token(Int, tmpStr);
+            [[fallthrough]];
         case '.':
             // handle back half of floats
             tmpStr += '.';
