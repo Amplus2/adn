@@ -1,6 +1,6 @@
 CXX ?= c++
 CXXFLAGS ?= -O2 -Wall -Wextra
-CXXFLAGS += -std=c++20
+CXXFLAGS += -std=c++2a
 
 test: testexe
 	./testexe
