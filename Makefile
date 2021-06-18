@@ -14,6 +14,6 @@ clean:
 	rm -f testexe
 
 format:
-	clang-format -Werror -i --style=file adn.hh
+	clang-format -Werror -i --style=file adn.hh test.cc
 
 .PHONY: clean test format all
