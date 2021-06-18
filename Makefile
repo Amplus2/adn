@@ -2,6 +2,8 @@ CXX ?= c++
 CXXFLAGS ?= -O2 -Wall -Wextra
 CXXFLAGS += -std=gnu++2a
 
+all: format test
+
 test: testexe
 	./testexe
 
@@ -11,4 +13,7 @@ testexe: adn.hh test.cc
 clean:
 	rm -f testexe
 
-.PHONY: clean test
+format:
+	clang-format -Werror -i --style=file adn.hh
+
+.PHONY: clean test format all

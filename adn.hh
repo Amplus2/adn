@@ -27,7 +27,7 @@ enum Type {
 
     EndOfFile, // end of file
 
-    // TODO: comments
+    // TODO: comments (some linters may want to use comments for some functionality)
 };
 
 class Token {
@@ -52,7 +52,7 @@ constexpr inline bool isDigit(char32_t c) { return c >= '0' && c <= '9'; }
 
 /**
  * Parses the next `Token` out of the buffer `s` with the end pointer `end`.
- * Errors are stored in `err`.
+ * Increments `s` by the length of the token.
  */
 inline Token next(const char32_t *&s, const char32_t *end) {
     // eat whitespace
@@ -70,8 +70,8 @@ inline Token next(const char32_t *&s, const char32_t *end) {
     char32_t c;
     std::u32string tmpStr;
 
-    // handle parentheses and brackets
     switch(c = *s++) {
+            // handle parentheses and brackets
         case '(':
             return Token(ParenLeft, U"(");
         case ')':
@@ -130,8 +130,12 @@ inline Token next(const char32_t *&s, const char32_t *end) {
     }
 }
 
-inline std::vector<Token> lex(const char32_t *s, uint_fast32_t length) {
-    const char32_t *end = s + length;
+/**
+ * A simplified API: calls `next` until it gets an EOF and returns all tokens
+ */
+inline std::vector<Token> lex(const std::u32string str) {
+    const char32_t *s = str.c_str();
+    const char32_t *end = s + str.size();
     std::vector<Token> tokens;
     do {
         tokens.push_back(next(s, end));
