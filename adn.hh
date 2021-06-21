@@ -19,22 +19,31 @@ enum Type {
     Hash,        // '#'
     SingleQuote, // '\''
 
-    Identifier, // [.^[0-9]]+
-    Int,        // [0-9]+
-    Float,      // [0-9]*'.'[0-9]+
-    Char,       // '\\'.
-    String,     // '"'.*?'"'
+    Id,     // [.^[0-9]]+
+    Int,    // [0-9]+
+    Float,  // [0-9]*'.'[0-9]+
+    Char,   // '\\'.
+    String, // '"'.*?'"'
 
     EndOfFile, // end of file
 
     // TODO: comments (some linters may want to use comments for some functionality)
 };
 
+enum Error {
+    None = 0,
+    CharEOF,
+    StringEOF,
+    FloatEOF,
+    FloatNotNumber,
+};
+
 class Token {
     public:
-    Type type;
+    enum Type type;
+    enum Error err;
     std::u32string value;
-    inline Token(Type t = Error, std::u32string v = std::u32string()) : type(t), value(v) {}
+    inline Token(enum Type t, std::u32string v, enum Error e = None) : type(t), value(v), err(e) {}
 };
 
 constexpr inline bool isWhitespace(char32_t c) {
@@ -65,7 +74,7 @@ inline Token next(const char32_t *&s, const char32_t *end) {
     }
 
     // handle end of file
-    if(s >= end) return Token(EndOfFile, U"end of file");
+    if(s >= end) return Token(EndOfFile, U"");
 
     char32_t c;
     std::u32string tmpStr;
@@ -73,33 +82,33 @@ inline Token next(const char32_t *&s, const char32_t *end) {
     switch(c = *s++) {
             // handle parentheses and brackets
         case '(':
-            return Token(ParenLeft, U"(");
+            return Token(ParenLeft, U"");
         case ')':
-            return Token(ParenRight, U")");
+            return Token(ParenRight, U"");
         case '[':
-            return Token(BracketLeft, U"[");
+            return Token(BracketLeft, U"");
         case ']':
-            return Token(BracketRight, U"]");
+            return Token(BracketRight, U"");
         case '{':
-            return Token(CurlyLeft, U"{");
+            return Token(CurlyLeft, U"");
         case '}':
-            return Token(CurlyRight, U"}");
+            return Token(CurlyRight, U"");
         case '*':
-            return Token(Asterisk, U"*");
+            return Token(Asterisk, U"");
         case '#':
-            return Token(Hash, U"#");
+            return Token(Hash, U"");
         case '\'':
-            return Token(SingleQuote, U"'");
+            return Token(SingleQuote, U"");
         case '\\':
-            if(s >= end) Token(Error, U"expected char after '\"', got EOF");
+            if(s >= end) Token(Error, U"", CharEOF);
             return Token(Char, std::u32string(1, *s++));
         case '"':
             // handle strings
-            if(s >= end) Token(Error, U"expected string after '\"', got EOF");
+            if(s >= end) Token(Error, U"", StringEOF);
             while(s < end && (c = *s++) != '"') {
                 tmpStr += c == '\\' ? *s++ : c;
             }
-            if(s >= end && c != '"') return Token(Error, U"expected string after '\"', got EOF");
+            if(s >= end && c != '"') return Token(Error, U"", StringEOF);
             return Token(String, tmpStr);
         case '0' ... '9':
             // handle integers and front half of floats
@@ -118,15 +127,14 @@ inline Token next(const char32_t *&s, const char32_t *end) {
                 } while(isDigit(c = *s++) && s <= end);
                 return Token(Float, tmpStr);
             } else
-                return Token(Error,
-                             std::u32string() + U"expected digit after '.', got " +
-                                     (s > end ? U"EOF" : std::u32string() + U"'" + c + U"'"));
+                return s > end ? Token(Error, U"", FloatEOF)
+                               : Token(Error, std::u32string() + c, FloatNotNumber);
         default:
             // handle identifiers
             do {
                 tmpStr += c;
             } while(s < end && isIdentifierChar(c = *s++));
-            return Token(Identifier, tmpStr);
+            return Token(Id, tmpStr);
     }
 }
 
