@@ -116,6 +116,9 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             }
             if(s >= end && c != '"') return Token(Error, U"", StringEOF);
             return Token(String, tmpStr);
+        case '-':
+            tmpStr += '-';
+            [[fallthrough]];
         case '0' ... '9':
             // handle integers and front half of floats
             do {
