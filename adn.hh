@@ -43,9 +43,17 @@ class Token {
     enum Type type;
     enum Error err;
     std::u32string value;
-    inline Token(enum Type t, std::u32string v, enum Error e = None) : type(t), value(v), err(e) {}
+    inline Token(enum Type t, std::u32string v = U"", enum Error e = None)
+            : type(t), err(e), value(v) {}
+    inline std::string to_string() const {
+        return std::string() + std::to_string(type) + " (" + std::to_string(err) +
+               "): " + Util::U32ToUtf8(value);
+    }
 };
 
+/**
+ * Checks if `c` is whitespace in an **almost** Unicode-compliant fashion.
+ */
 constexpr inline bool isWhitespace(char32_t c) {
     return c <= ' ' || c == ',' || c == 0x85 || c == 0xA0 || c == 0x1680 ||
            (c >= 0x2000 && c <= 0x200C) || c == 0x2028 || c == 0x2029 || c == 0x202F ||
@@ -82,23 +90,21 @@ inline Token next(const char32_t *&s, const char32_t *end) {
     switch(c = *s++) {
             // handle parentheses and brackets
         case '(':
-            return Token(ParenLeft, U"");
+            return Token(ParenLeft);
         case ')':
-            return Token(ParenRight, U"");
+            return Token(ParenRight);
         case '[':
-            return Token(BracketLeft, U"");
+            return Token(BracketLeft);
         case ']':
-            return Token(BracketRight, U"");
+            return Token(BracketRight);
         case '{':
-            return Token(CurlyLeft, U"");
+            return Token(CurlyLeft);
         case '}':
-            return Token(CurlyRight, U"");
-        case '*':
-            return Token(Asterisk, U"");
+            return Token(CurlyRight);
         case '#':
-            return Token(Hash, U"");
+            return Token(Hash);
         case '\'':
-            return Token(SingleQuote, U"");
+            return Token(SingleQuote);
         case '\\':
             if(s >= end) Token(Error, U"", CharEOF);
             return Token(Char, std::u32string(1, *s++));
@@ -114,7 +120,8 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             // handle integers and front half of floats
             do {
                 tmpStr += c;
-            } while(s < end && isDigit((c = *s++)));
+            } while(s < end && isDigit(c = *s++));
+            if(c != '.') s--;
             if(c != '.' || s >= end) return Token(Int, tmpStr);
             [[fallthrough]];
         case '.':
@@ -124,7 +131,8 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             if(isDigit(c) && s <= end) {
                 do {
                     tmpStr += c;
-                } while(isDigit(c = *s++) && s <= end);
+                } while(s < end && isDigit(c = *s++));
+                if(s < end) s--;
                 return Token(Float, tmpStr);
             } else
                 return s > end ? Token(Error, U"", FloatEOF)
@@ -134,6 +142,7 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             do {
                 tmpStr += c;
             } while(s < end && isIdentifierChar(c = *s++));
+            if(s < end) s--;
             return Token(Id, tmpStr);
     }
 }
