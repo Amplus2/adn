@@ -70,10 +70,12 @@ constexpr inline bool isDigit(char32_t c) { return c >= '0' && c <= '9'; }
  * Increments `s` by the length of the token.
  */
 inline Token next(const char32_t *&s, const char32_t *end) {
+    // TODO: a lot of fuzzing to find problems in here
     // eat whitespace
     while(isWhitespace(*s) && s < end) s++;
 
     // eat comments
+    // TODO: implement comment pass-through
     if(*s == ';') {
         while(*s != '\n' && s < end) s++;
         return next(s, end);
@@ -116,14 +118,18 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             return Token(String, tmpStr);
         case '-':
             tmpStr += '-';
+            c = *s++;
             [[fallthrough]];
         case '0' ... '9':
             // handle integers and front half of floats
             do {
                 tmpStr += c;
-            } while(s < end && isDigit(c = *s++));
-            if(c != '.') s--;
-            if(c != '.' || s >= end) return Token(Int, tmpStr);
+            } while(s < end && isDigit((c = *s++)));
+            if(s >= end) return Token(Int, tmpStr);
+            if(c != '.') {
+                s--;
+                return Token(Int, tmpStr);
+            }
             [[fallthrough]];
         case '.':
             // handle back half of floats
