@@ -1,5 +1,6 @@
 CXX = c++
-CXXFLAGS = -std=gnu++2a -Og -g -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined
+CXXFLAGS = -std=c++2a -Og -g -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined
+DB ?= lldb
 
 all: format test
 
@@ -14,5 +15,8 @@ clean:
 
 format:
 	clang-format -Werror -i --style=file adn.hh test.cc
+
+debug: testexe
+	$(DB) testexe
 
 .PHONY: clean test format all
