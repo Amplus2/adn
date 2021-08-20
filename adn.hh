@@ -80,9 +80,6 @@ class Token {
     }
 };
 
-/**
- * Checks if `c` is whitespace in an **almost** Unicode-compliant fashion.
- */
 constexpr inline bool isWhitespace(char32_t c) {
     return c <= ' ' || c == ',' || c == 0x85 || c == 0xA0 || c == 0x1680 ||
            (c >= 0x2000 && c <= 0x200C) || c == 0x2028 || c == 0x2029 || c == 0x202F ||
@@ -102,56 +99,52 @@ constexpr inline bool isDigit(char32_t c) { return c >= '0' && c <= '9'; }
  */
 inline Token next(const char32_t *&s, const char32_t *end) {
     // TODO: a lot of fuzzing to find problems in here
-    // eat whitespace
-    while(isWhitespace(*s) && s < end) s++;
 
-    // eat comments
-    // TODO: implement comment pass-through
-    if(*s == ';') {
-        while(*s != '\n' && s < end) s++;
-        return next(s, end);
-    }
-
-    // handle end of file
-    if(s >= end) return Token(EndOfFile, U"");
+    while(s < end && isWhitespace(*s)) s++;
+    if(s >= end) return Token(EndOfFile);
 
     char32_t c;
     std::u32string tmpStr;
 
     switch(c = *s++) {
             // handle parentheses and brackets
-        case '(':
-            return Token(ParenLeft);
-        case ')':
-            return Token(ParenRight);
-        case '[':
-            return Token(BracketLeft);
-        case ']':
-            return Token(BracketRight);
-        case '{':
-            return Token(CurlyLeft);
-        case '}':
-            return Token(CurlyRight);
-        case '#':
-            return Token(Hash);
-        case '\'':
-            return Token(SingleQuote);
+        case '(': return Token(ParenLeft);
+        case ')': return Token(ParenRight);
+        case '[': return Token(BracketLeft);
+        case ']': return Token(BracketRight);
+        case '{': return Token(CurlyLeft);
+        case '}': return Token(CurlyRight);
+        case '#': return Token(Hash);
+        case '\'': return Token(SingleQuote);
         case '\\':
             if(s >= end) Token(Error, U"", CharEOF);
             return Token(Char, std::u32string(1, *s++));
         case '"':
-            // handle strings
-            if(s >= end) Token(Error, U"", StringEOF);
+            c = '\0'; // this is a hack for the error check later to work
             while(s < end && (c = *s++) != '"') {
+                // TODO: implement actual escape codes
                 tmpStr += c == '\\' ? *s++ : c;
             }
             if(s >= end && c != '"') return Token(Error, U"", StringEOF);
             return Token(String, tmpStr);
+        case ';':
+            while(s < end && *s != '\n') tmpStr += *s++;
+            return Token(Comment, tmpStr);
         case '-':
             tmpStr += '-';
             c = *s++;
             [[fallthrough]];
-        case '0' ... '9':
+        case '+': [[fallthrough]];
+        case '0': [[fallthrough]];
+        case '1': [[fallthrough]];
+        case '2': [[fallthrough]];
+        case '3': [[fallthrough]];
+        case '4': [[fallthrough]];
+        case '5': [[fallthrough]];
+        case '6': [[fallthrough]];
+        case '7': [[fallthrough]];
+        case '8': [[fallthrough]];
+        case '9':
             // handle integers and front half of floats
             do {
                 tmpStr += c;
@@ -209,8 +202,10 @@ enum Type {
     List,
     Vector,
     Map,
+    Comment = Lexer::Comment,
     EndOfFile = Lexer::EndOfFile,
 };
+// TODO: rethink all of these
 enum Error {
     None = 0,
     LexerError = 1,
@@ -236,24 +231,14 @@ class Element {
         std::string s = std::string() + std::to_string(type) + " (" + std::to_string(err) +
                         "): " + Util::StringMul("#", hashes) + Util::StringMul("'", quotes);
         switch(type) {
-            case Error:
-                break;
-            case Id:
-                [[fallthrough]];
-            case String:
-                s += '"' + Util::U32ToUtf8(str) + '"';
-                break;
-            case Int:
-                s += std::to_string(i);
-                break;
-            case Float:
-                s += std::to_string(d);
-                break;
-            case Char:
-                s += Util::U32ToUtf8(std::u32string(1, c));
-                break;
-            case List:
-                [[fallthrough]];
+            case Error: break;
+            case EndOfFile: break;
+            case Id: [[fallthrough]];
+            case String: s += '"' + Util::U32ToUtf8(str) + '"'; break;
+            case Int: s += std::to_string(i); break;
+            case Float: s += std::to_string(d); break;
+            case Char: s += Util::U32ToUtf8(std::u32string(1, c)); break;
+            case List: [[fallthrough]];
             case Vector:
                 for(Element e : vec) {
                     s += "(" + e.to_string() + ") ";
@@ -266,23 +251,20 @@ class Element {
                 }
                 if(!map.empty()) s.pop_back();
                 break;
-            case EndOfFile:
-                break;
         }
         return s;
     }
 };
+/**
+ * Parses the next `Element` out of the buffer `ts` with the end pointer `end`.
+ * Increments `ts` by the length of the token.
+ */
 inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
     Element e(EndOfFile);
     if(ts >= end) return e;
     Lexer::Token t = *ts++;
-    // TODO: this CAN overflow the buffer if it ends in a comment, fix that pls
-    while(t.type == Lexer::Comment) {
-        t = *ts++;
-    }
     switch(t.type) {
-        case Lexer::Error:
-            return Element(Error, LexerError);
+        case Lexer::Error: return Element(Error, LexerError);
         case Lexer::ParenLeft:
             e = Element(List);
             do {
@@ -327,12 +309,9 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
                 e.map.push_back({key, value});
             }
             return e;
-        case Lexer::ParenRight:
-            return Element(Error, UnmatchedParens);
-        case Lexer::BracketRight:
-            return Element(Error, UnmatchedBrackets);
-        case Lexer::CurlyRight:
-            return Element(Error, UnmatchedCurlies);
+        case Lexer::ParenRight: return Element(Error, UnmatchedParens);
+        case Lexer::BracketRight: return Element(Error, UnmatchedBrackets);
+        case Lexer::CurlyRight: return Element(Error, UnmatchedCurlies);
         case Lexer::Hash:
             e = next(ts, end);
             e.hashes++;
@@ -363,11 +342,11 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
             e.type = String;
             e.str = t.value;
             return e;
-        case Lexer::EndOfFile:
-            return Element(EndOfFile);
-            // this can not happen
         case Lexer::Comment:
-            break;
+            e.type = Comment;
+            e.str = t.value;
+            return e;
+        case Lexer::EndOfFile: return Element(EndOfFile);
     }
     return Element(Error, None);
 }
@@ -376,11 +355,11 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
  * A simplified API: calls `next` until it gets an EOF and returns all elements
  */
 inline std::vector<Element> parse(const std::vector<Lexer::Token> tokens) {
-    const Lexer::Token *s = &tokens[0];
-    const Lexer::Token *end = s + tokens.size();
+    const Lexer::Token *ts = &tokens[0];
+    const Lexer::Token *end = ts + tokens.size();
     std::vector<Element> elements;
     do {
-        elements.push_back(next(s, end));
+        elements.push_back(next(ts, end));
     } while(elements.back().type != EndOfFile);
     return elements;
 }

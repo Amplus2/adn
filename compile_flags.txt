@@ -1,3 +1,4 @@
 -Wall
 -Wextra
--std=gnu++2a
+-pedantic
+-std=c++2a
