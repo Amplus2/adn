@@ -1,9 +1,21 @@
 #pragma once
+#include <codecvt>
+#include <locale>
 #include <string>
 #include <vector>
 
 namespace {
 namespace Adn {
+namespace Util {
+inline std::string U32ToUtf8(const std::u32string &s) {
+    return std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(s);
+}
+inline std::string StringMul(const std::string &s, unsigned n) {
+    std::string o;
+    while(n--) o += s;
+    return o;
+}
+}
 namespace Lexer {
 enum Type {
     Error = 0,
@@ -165,6 +177,193 @@ inline std::vector<Token> lex(const std::u32string str) {
         tokens.push_back(next(s, end));
     } while(tokens.back().type != EndOfFile);
     return tokens;
+}
+}
+namespace Parser {
+enum Type {
+    Error = Lexer::Error,
+    Id = Lexer::Id,
+    Int = Lexer::Int,
+    Float = Lexer::Float,
+    Char = Lexer::Char,
+    String = Lexer::String,
+    List,
+    Vector,
+    Map,
+    EndOfFile = Lexer::EndOfFile,
+};
+enum Error {
+    None = 0,
+    LexerError = 1,
+    UnmatchedParens = 2,
+    UnmatchedBrackets = 4,
+    UnmatchedCurlies = 8,
+    UnmatchedMapKey = 16,
+};
+class Element {
+    public:
+    enum Type type;
+    enum Error err;
+    uint_fast8_t quotes = 0, hashes = 0;
+    std::u32string str;
+    std::vector<Element> vec;
+    // this is HORRIBLE, but we can't use std::map
+    std::vector<std::pair<Element, Element>> map;
+    int_fast64_t i;
+    double d;
+    char32_t c;
+    inline Element(enum Type t, enum Error e = None) : type(t), err(e) {}
+    inline std::string to_string() const {
+        std::string s = std::string() + std::to_string(type) + " (" + std::to_string(err) +
+                        "): " + Util::StringMul("#", hashes) + Util::StringMul("'", quotes);
+        switch(type) {
+            case Error:
+                break;
+            case Id:
+                [[fallthrough]];
+            case String:
+                s += '"' + Util::U32ToUtf8(str) + '"';
+                break;
+            case Int:
+                s += std::to_string(i);
+                break;
+            case Float:
+                s += std::to_string(d);
+                break;
+            case Char:
+                s += Util::U32ToUtf8(std::u32string(1, c));
+                break;
+            case List:
+                [[fallthrough]];
+            case Vector:
+                for(Element e : vec) {
+                    s += "(" + e.to_string() + ") ";
+                }
+                if(!vec.empty()) s.pop_back();
+                break;
+            case Map:
+                for(auto p : map) {
+                    s += "(" + p.first.to_string() + ") : (" + p.second.to_string() + ") ";
+                }
+                if(!map.empty()) s.pop_back();
+                break;
+            case EndOfFile:
+                break;
+        }
+        return s;
+    }
+};
+inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
+    Element e(EndOfFile);
+    if(ts >= end) return e;
+    Lexer::Token t = *ts++;
+    // TODO: this CAN overflow the buffer if it ends in a comment, fix that pls
+    while(t.type == Lexer::Comment) {
+        t = *ts++;
+    }
+    switch(t.type) {
+        case Lexer::Error:
+            return Element(Error, LexerError);
+        case Lexer::ParenLeft:
+            e = Element(List);
+            do {
+                if((*ts).type == Lexer::ParenRight) {
+                    ts++;
+                    return e;
+                }
+                e.vec.push_back(next(ts, end));
+            } while(e.vec.back().type != EndOfFile);
+            return e;
+        case Lexer::BracketLeft:
+            e.type = Vector;
+            do {
+                if((*ts).type == Lexer::BracketRight) {
+                    ts++;
+                    return e;
+                }
+                e.vec.push_back(next(ts, end));
+            } while(e.vec.back().type != EndOfFile);
+            return e;
+        case Lexer::CurlyLeft:
+            e.type = Map;
+            while(ts <= end) {
+                if((*ts).type == Lexer::CurlyRight) {
+                    ts++;
+                    return e;
+                }
+                Element key = next(ts, end);
+                // for eof the error and handling are not really correct
+                // TODO: rethink this a bit
+                if(key.type == EndOfFile || (*ts).type == Lexer::CurlyRight) {
+                    ts++;
+                    e.err = UnmatchedMapKey;
+                    return e;
+                }
+                Element value = next(ts, end);
+                // TODO: this is also obviously wrong
+                if(value.type == EndOfFile || ts > end) {
+                    e.err = UnmatchedMapKey;
+                    return e;
+                }
+                e.map.push_back({key, value});
+            }
+            return e;
+        case Lexer::ParenRight:
+            return Element(Error, UnmatchedParens);
+        case Lexer::BracketRight:
+            return Element(Error, UnmatchedBrackets);
+        case Lexer::CurlyRight:
+            return Element(Error, UnmatchedCurlies);
+        case Lexer::Hash:
+            e = next(ts, end);
+            e.hashes++;
+            return e;
+        case Lexer::SingleQuote:
+            e = next(ts, end);
+            e.quotes++;
+            return e;
+        case Lexer::Id:
+            e.type = Id;
+            e.str = t.value;
+            return e;
+        case Lexer::Int:
+            e.type = Int;
+            e.i = std::stoll(std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(
+                    t.value));
+            return e;
+        case Lexer::Float:
+            e.type = Float;
+            e.d = std::stod(std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(
+                    t.value));
+            return e;
+        case Lexer::Char:
+            e.type = Char;
+            e.c = t.value[0];
+            return e;
+        case Lexer::String:
+            e.type = String;
+            e.str = t.value;
+            return e;
+        case Lexer::EndOfFile:
+            return Element(EndOfFile);
+            // this can not happen
+        case Lexer::Comment:
+            break;
+    }
+    return Element(Error, None);
+}
+
+/**
+ * A simplified API: calls `next` until it gets an EOF and returns all elements
+ */
+inline std::vector<Element> parse(const std::vector<Lexer::Token> tokens) {
+    const Lexer::Token *s = &tokens[0];
+    const Lexer::Token *end = s + tokens.size();
+    std::vector<Element> elements;
+    do {
+        elements.push_back(next(s, end));
+    } while(elements.back().type != EndOfFile);
+    return elements;
 }
 }
 }
