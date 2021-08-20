@@ -1,6 +1,5 @@
-CXX ?= c++
-CXXFLAGS ?= -O2 -Wall -Wextra
-CXXFLAGS += -std=gnu++2a
+CXX = c++
+CXXFLAGS = -std=gnu++2a -Og -g -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined
 
 all: format test
 
