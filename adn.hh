@@ -60,7 +60,7 @@ constexpr inline bool isWhitespace(char32_t c) {
 
 constexpr inline bool isIdentifierChar(char32_t c) {
     return !isWhitespace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != '{' &&
-           c != '}' && c != '#' && c != '*';
+           c != '}' && c != '#';
 }
 
 constexpr inline bool isDigit(char32_t c) { return c >= '0' && c <= '9'; }
