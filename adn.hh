@@ -6,28 +6,26 @@ namespace {
 namespace Adn {
 namespace Lexer {
 enum Type {
-    Error,
+    Error = 0,
 
-    ParenLeft,    // '('
-    ParenRight,   // ')'
-    BracketLeft,  // '['
-    BracketRight, // ']'
-    CurlyLeft,    // '{'
-    CurlyRight,   // '}'
+    ParenLeft = 1,    // '('
+    ParenRight = 2,   // ')'
+    BracketLeft = 3,  // '['
+    BracketRight = 4, // ']'
+    CurlyLeft = 5,    // '{'
+    CurlyRight = 6,   // '}'
 
-    Asterisk,    // '*'
-    Hash,        // '#'
-    SingleQuote, // '\''
+    Hash = 7,        // '#'
+    SingleQuote = 8, // '\''
 
-    Id,     // [.^[0-9]]+
-    Int,    // [0-9]+
-    Float,  // [0-9]*'.'[0-9]+
-    Char,   // '\\'.
-    String, // '"'.*?'"'
+    Id = 9,      // [.^[0-9]]+
+    Int = 10,    // [0-9]+
+    Float = 11,  // [0-9]*'.'[0-9]+
+    Char = 12,   // '\\'.
+    String = 13, // '"'.*?'"'
 
-    EndOfFile, // end of file
-
-    // TODO: comments (some linters may want to use comments for some functionality)
+    Comment = 14, // Currently unused cause all comments are ignored
+    EndOfFile = 0xff,
 };
 
 enum Error {
