@@ -40,36 +40,37 @@ inline std::string StringMul(const std::string &s, unsigned n) {
     return o;
 }
 }
+using namespace Util;
 namespace Lexer {
 enum Type {
     Error = 0,
 
-    ParenLeft = 1,    // '('
-    ParenRight = 2,   // ')'
-    BracketLeft = 3,  // '['
-    BracketRight = 4, // ']'
-    CurlyLeft = 5,    // '{'
-    CurlyRight = 6,   // '}'
+    ParenLeft = 1,
+    ParenRight = 2,
+    BracketLeft = 3,
+    BracketRight = 4,
+    CurlyLeft = 5,
+    CurlyRight = 6,
 
-    Hash = 7,        // '#'
-    SingleQuote = 8, // '\''
+    Hash = 7,
+    SingleQuote = 8,
 
-    Id = 9,      // [.^[0-9]]+
+    Id = 9,
     Int = 10,    // [0-9]+
     Float = 11,  // [0-9]*'.'[0-9]+
     Char = 12,   // '\\'.
     String = 13, // '"'.*?'"'
 
-    Comment = 14, // Currently unused cause all comments are ignored
+    Comment = 14,
     EndOfFile = 0xff,
 };
 
 enum Error {
     None = 0,
-    CharEOF,
-    StringEOF,
-    FloatEOF,
-    FloatNotNumber,
+    CharEOF = 1,
+    StringEOF = 2,
+    FloatEOF = 4,
+    FloatNotNumber = 8,
 };
 
 class Token {
