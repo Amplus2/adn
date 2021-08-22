@@ -39,6 +39,17 @@ inline std::string StringMul(const std::string &s, unsigned n) {
     while(n--) o += s;
     return o;
 }
+constexpr inline bool IsWhitespace(char32_t c) {
+    return c <= ' ' || c == ',' || c == 0x85 || c == 0xA0 || c == 0x1680 ||
+           (c >= 0x2000 && c <= 0x200C) || c == 0x2028 || c == 0x2029 || c == 0x202F ||
+           c == 0x205F || c == 0x3000 || c == 0xFEFF;
+}
+/// checks if `c` is valid as an identifier char except the first one
+constexpr inline bool IsIdentifierChar(char32_t c) {
+    return !IsWhitespace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != '{' &&
+           c != '}' && c != '#';
+}
+constexpr inline bool IsDigit(char32_t c) { return c >= '0' && c <= '9'; }
 }
 using namespace Util;
 namespace Lexer {
@@ -82,31 +93,18 @@ class Token {
             : type(t), err(e), value(v) {}
     inline std::string to_string() const {
         return std::string() + std::to_string(type) + " (" + std::to_string(err) +
-               "): " + Util::U32ToUtf8(value);
+               "): " + U32ToUtf8(value);
     }
 };
-
-constexpr inline bool isWhitespace(char32_t c) {
-    return c <= ' ' || c == ',' || c == 0x85 || c == 0xA0 || c == 0x1680 ||
-           (c >= 0x2000 && c <= 0x200C) || c == 0x2028 || c == 0x2029 || c == 0x202F ||
-           c == 0x205F || c == 0x3000 || c == 0xFEFF;
-}
-
-constexpr inline bool isIdentifierChar(char32_t c) {
-    return !isWhitespace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != '{' &&
-           c != '}' && c != '#';
-}
-
-constexpr inline bool isDigit(char32_t c) { return c >= '0' && c <= '9'; }
 
 /**
  * Parses the next `Token` out of the buffer `s` with the end pointer `end`.
  * Increments `s` by the length of the token.
  */
-inline Token next(const char32_t *&s, const char32_t *end) {
+inline Token Next(const char32_t *&s, const char32_t *end) {
     // TODO: a lot of fuzzing to find problems in here
 
-    while(s < end && isWhitespace(*s)) s++;
+    while(s < end && IsWhitespace(*s)) s++;
     if(s >= end) return Token(EndOfFile);
 
     char32_t c;
@@ -155,7 +153,7 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             // TODO: hex, bin and oct numbers
             do {
                 tmpStr += c;
-            } while(s < end && isDigit((c = *s++)));
+            } while(s < end && IsDigit((c = *s++)));
             if(s >= end) return Token(Int, tmpStr);
             if(c != '.') {
                 s--;
@@ -166,10 +164,10 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             // handle back half of floats
             tmpStr += '.';
             c = *s++;
-            if(isDigit(c) && s <= end) {
+            if(IsDigit(c) && s <= end) {
                 do {
                     tmpStr += c;
-                } while(s < end && isDigit(c = *s++));
+                } while(s < end && IsDigit(c = *s++));
                 if(s < end) s--;
                 return Token(Float, tmpStr);
             } else
@@ -179,21 +177,21 @@ inline Token next(const char32_t *&s, const char32_t *end) {
             // handle identifiers
             do {
                 tmpStr += c;
-            } while(s < end && isIdentifierChar(c = *s++));
+            } while(s < end && IsIdentifierChar(c = *s++));
             if(s < end) s--;
             return Token(Id, tmpStr);
     }
 }
 
 /**
- * A simplified API: calls `next` until it gets an EOF and returns all tokens
+ * A simplified API: calls `Next` until it gets an EOF and returns all tokens
  */
-inline std::vector<Token> lex(const std::u32string str) {
+inline std::vector<Token> Lex(const std::u32string str) {
     const char32_t *s = str.c_str();
     const char32_t *end = s + str.size();
     std::vector<Token> tokens;
     do {
-        tokens.push_back(next(s, end));
+        tokens.push_back(Next(s, end));
     } while(tokens.back().type != EndOfFile);
     return tokens;
 }
@@ -235,15 +233,15 @@ class Element {
     inline Element(enum Type t, enum Error e = None) : type(t), err(e) {}
     inline std::string to_string() const {
         std::string s = std::string() + std::to_string(type) + " (" + std::to_string(err) +
-                        "): " + Util::StringMul("#", hashes) + Util::StringMul("'", quotes);
+                        "): " + StringMul("#", hashes) + StringMul("'", quotes);
         switch(type) {
             case Error: break;
             case EndOfFile: break;
             case Id: [[fallthrough]];
-            case String: s += '"' + Util::U32ToUtf8(str) + '"'; break;
+            case String: s += '"' + U32ToUtf8(str) + '"'; break;
             case Int: s += std::to_string(i); break;
             case Float: s += std::to_string(d); break;
-            case Char: s += Util::U32ToUtf8(std::u32string(1, c)); break;
+            case Char: s += U32ToUtf8(std::u32string(1, c)); break;
             case List: [[fallthrough]];
             case Vector:
                 for(Element e : vec) {
@@ -265,7 +263,7 @@ class Element {
  * Parses the next `Element` out of the buffer `ts` with the end pointer `end`.
  * Increments `ts` by the length of the token.
  */
-inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
+inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
     Element e(EndOfFile);
     if(ts >= end) return e;
     Lexer::Token t = *ts++;
@@ -278,7 +276,7 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
                     ts++;
                     return e;
                 }
-                e.vec.push_back(next(ts, end));
+                e.vec.push_back(Next(ts, end));
             } while(e.vec.back().type != EndOfFile);
             e.err = UnmatchedParens;
             return e;
@@ -289,7 +287,7 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
                     ts++;
                     return e;
                 }
-                e.vec.push_back(next(ts, end));
+                e.vec.push_back(Next(ts, end));
             } while(e.vec.back().type != EndOfFile);
             e.err = UnmatchedBrackets;
             return e;
@@ -318,11 +316,11 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
         case Lexer::BracketRight: return Element(Error, UnmatchedBrackets);
         case Lexer::CurlyRight: return Element(Error, UnmatchedCurlies);
         case Lexer::Hash:
-            e = next(ts, end);
+            e = Next(ts, end);
             e.hashes++;
             return e;
         case Lexer::SingleQuote:
-            e = next(ts, end);
+            e = Next(ts, end);
             e.quotes++;
             return e;
         case Lexer::Id:
@@ -356,14 +354,14 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
 }
 
 /**
- * A simplified API: calls `next` until it gets an EOF and returns all elements
+ * A simplified API: calls `Next` until it gets an EOF and returns all elements
  */
-inline std::vector<Element> parse(const std::vector<Lexer::Token> tokens) {
+inline std::vector<Element> Parse(const std::vector<Lexer::Token> tokens) {
     const Lexer::Token *ts = &tokens[0];
     const Lexer::Token *end = ts + tokens.size();
     std::vector<Element> elements;
     do {
-        elements.push_back(next(ts, end));
+        elements.push_back(Next(ts, end));
     } while(elements.back().type != EndOfFile);
     return elements;
 }

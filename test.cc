@@ -11,7 +11,7 @@
 
 #define lex_assert(expr)                                \
     {                                                   \
-        Adn::Lexer::Token t = Adn::Lexer::next(s, end); \
+        Adn::Lexer::Token t = Adn::Lexer::Next(s, end); \
         err_assert(expr);                               \
     }
 
@@ -33,7 +33,7 @@ int main() {
     lex_assert(t.type == Adn::Lexer::Float && t.value == U"3.145");
     lex_assert(t.type == Adn::Lexer::Float && t.value == U".1");
     lex_assert(t.type == Adn::Lexer::Int && t.value == U"42");
-    const std::vector<Adn::Parser::Element> elements = Adn::Parser::parse(Adn::Lexer::lex(test2));
+    const std::vector<Adn::Parser::Element> elements = Adn::Parser::Parse(Adn::Lexer::Lex(test2));
     err_assert(elements[0].type == Adn::Parser::Char && elements[0].c == U'@');
     err_assert(elements[1].type == Adn::Parser::List && elements[1].vec[0].str == U"x");
     err_assert(elements[2].type == Adn::Parser::Map);
