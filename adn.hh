@@ -152,6 +152,7 @@ inline Token next(const char32_t *&s, const char32_t *end) {
         case '8': [[fallthrough]];
         case '9':
             // handle integers and front half of floats
+            // TODO: hex, bin and oct numbers
             do {
                 tmpStr += c;
             } while(s < end && isDigit((c = *s++)));
@@ -211,7 +212,6 @@ enum Type {
     Comment = Lexer::Comment,
     EndOfFile = Lexer::EndOfFile,
 };
-// TODO: rethink all of these
 enum Error {
     None = 0,
     LexerError = 1,
@@ -280,6 +280,7 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
                 }
                 e.vec.push_back(next(ts, end));
             } while(e.vec.back().type != EndOfFile);
+            e.err = UnmatchedParens;
             return e;
         case Lexer::BracketLeft:
             e.type = Vector;
@@ -290,6 +291,7 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
                 }
                 e.vec.push_back(next(ts, end));
             } while(e.vec.back().type != EndOfFile);
+            e.err = UnmatchedBrackets;
             return e;
         case Lexer::CurlyLeft:
             e.type = Map;
@@ -298,18 +300,15 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
                     ts++;
                     return e;
                 }
-                Element key = next(ts, end);
-                // for eof the error and handling are not really correct
-                // TODO: rethink this a bit
+                Element key = Next(ts, end);
                 if(key.type == EndOfFile || (*ts).type == Lexer::CurlyRight) {
                     ts++;
-                    e.err = UnmatchedMapKey;
+                    e.err = key.type == EndOfFile ? UnmatchedCurlies : UnmatchedMapKey;
                     return e;
                 }
-                Element value = next(ts, end);
-                // TODO: this is also obviously wrong
-                if(value.type == EndOfFile || ts > end) {
-                    e.err = UnmatchedMapKey;
+                Element value = Next(ts, end);
+                if(value.type == EndOfFile) {
+                    e.err = (enum Error)(UnmatchedCurlies | UnmatchedMapKey);
                     return e;
                 }
                 e.map.push_back({key, value});
@@ -354,7 +353,6 @@ inline Element next(const Lexer::Token *&ts, const Lexer::Token *end) {
             return e;
         case Lexer::EndOfFile: return Element(EndOfFile);
     }
-    return Element(Error, None);
 }
 
 /**
