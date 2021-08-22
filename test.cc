@@ -2,45 +2,54 @@
 #include <string>
 
 #include "adn.hh"
+using namespace Adn;
 
-#define err_assert(expr)                                         \
+#define Assert(expr)                                             \
     if(!(expr)) {                                                \
         err++;                                                   \
         std::cout << "Failed assertion: " << #expr << std::endl; \
     }
 
-#define lex_assert(expr)                                \
-    {                                                   \
-        Adn::Lexer::Token t = Adn::Lexer::Next(s, end); \
-        err_assert(expr);                               \
+#define LexAssert(ty, val)                                    \
+    {                                                         \
+        Lexer::Token t = Lexer::Next(s, send);                \
+        Assert(t.type == Lexer::ty);                          \
+        Assert(std::u32string(val) == U"" || t.value == val); \
+    }
+
+#define ParseAssert(ty, expr)                        \
+    {                                                \
+        Parser::Element e = Parser::Next(ts, tsend); \
+        Assert(e.type == Parser::ty);                \
+        Assert(expr);                                \
     }
 
 int main() {
     const std::u32string test1 = U"( [\n{}\t]) \"str\" \\ä \\🍆 3.145 .1 42";
     const std::u32string test2 = U"\\@ (x \\y .5) {… ∧} -42";
     const char32_t *s = test1.c_str();
-    const char32_t *end = s + test1.size();
+    const char32_t *send = s + test1.size();
+    const auto test2t = Lexer::Lex(test2);
+    const Lexer::Token *ts = &test2t[0];
+    const Lexer::Token *tsend = ts + test2t.size();
     int err = 0;
-    lex_assert(t.type == Adn::Lexer::ParenLeft);
-    lex_assert(t.type == Adn::Lexer::BracketLeft);
-    lex_assert(t.type == Adn::Lexer::CurlyLeft);
-    lex_assert(t.type == Adn::Lexer::CurlyRight);
-    lex_assert(t.type == Adn::Lexer::BracketRight);
-    lex_assert(t.type == Adn::Lexer::ParenRight);
-    lex_assert(t.type == Adn::Lexer::String && t.value == U"str");
-    lex_assert(t.type == Adn::Lexer::Char && t.value == U"ä");
-    lex_assert(t.type == Adn::Lexer::Char && t.value == U"🍆");
-    lex_assert(t.type == Adn::Lexer::Float && t.value == U"3.145");
-    lex_assert(t.type == Adn::Lexer::Float && t.value == U".1");
-    lex_assert(t.type == Adn::Lexer::Int && t.value == U"42");
-    const std::vector<Adn::Parser::Element> elements = Adn::Parser::Parse(Adn::Lexer::Lex(test2));
-    err_assert(elements[0].type == Adn::Parser::Char && elements[0].c == U'@');
-    err_assert(elements[1].type == Adn::Parser::List && elements[1].vec[0].str == U"x");
-    err_assert(elements[2].type == Adn::Parser::Map);
-    err_assert(elements[2].map[0].first.type == Adn::Parser::Id);
-    err_assert(elements[2].map[0].first.str == U"…");
-    err_assert(elements[2].map[0].second.type == Adn::Parser::Id);
-    err_assert(elements[2].map[0].second.str == U"∧");
+    LexAssert(ParenLeft, U"");
+    LexAssert(BracketLeft, U"");
+    LexAssert(CurlyLeft, U"");
+    LexAssert(CurlyRight, U"");
+    LexAssert(BracketRight, U"");
+    LexAssert(ParenRight, U"");
+    LexAssert(String, U"str");
+    LexAssert(Char, U"ä");
+    LexAssert(Char, U"🍆");
+    LexAssert(Float, U"3.145");
+    LexAssert(Float, U".1");
+    LexAssert(Int, U"42");
+    ParseAssert(Char, e.c == U'@');
+    ParseAssert(List, e.vec[0].str == U"x");
+    ParseAssert(Map,
+                e.map[0].first.type == Parser::Id && e.map[0].first.str == U"…" &&
+                        e.map[0].second.type == Parser::Id && e.map[0].second.str == U"∧");
     if(!err) std::cout << "All tests passed." << std::endl;
     return err;
 }
