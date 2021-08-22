@@ -25,7 +25,7 @@ using namespace Adn;
     }
 
 int main() {
-    const std::u32string test1 = U"( [\n{}\t]) \"str\" \\ä \\🍆 3.145 .1 42";
+    const std::u32string test1 = U"( [\n{}\t]) \"str\\ting\" \\ä \\🍆 3.145 .1 42";
     const std::u32string test2 = U"\\@ (x \\y .5) {… ∧} -42";
     const char32_t *s = test1.c_str();
     const char32_t *send = s + test1.size();
@@ -39,7 +39,7 @@ int main() {
     LexAssert(CurlyRight, U"");
     LexAssert(BracketRight, U"");
     LexAssert(ParenRight, U"");
-    LexAssert(String, U"str");
+    LexAssert(String, U"str\ting");
     LexAssert(Char, U"ä");
     LexAssert(Char, U"🍆");
     LexAssert(Float, U"3.145");

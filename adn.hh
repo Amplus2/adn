@@ -50,6 +50,9 @@ constexpr inline bool IsIdentifierChar(char32_t c) {
            c != '}' && c != '#';
 }
 constexpr inline bool IsDigit(char32_t c) { return c >= '0' && c <= '9'; }
+constexpr inline char32_t Unescape(char32_t c) {
+    return c == 'n' ? '\n' : c == 'r' ? '\r' : c == 't' ? '\t' : c;
+}
 }
 using namespace Util;
 namespace Lexer {
@@ -126,8 +129,7 @@ inline Token Next(const char32_t *&s, const char32_t *end) {
         case '"':
             c = '\0'; // this is a hack for the error check later to work
             while(s < end && (c = *s++) != '"') {
-                // TODO: implement actual escape codes
-                tmpStr += c == '\\' ? *s++ : c;
+                tmpStr += c == '\\' ? Unescape(*s++) : c;
             }
             if(s >= end && c != '"') return Token(Error, U"", StringEOF);
             return Token(String, tmpStr);
