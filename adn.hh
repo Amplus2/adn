@@ -25,6 +25,11 @@
 
 namespace {
 namespace Adn {
+namespace Version {
+const int Major = 0;
+const int Minor = 0;
+const std::string Pretty = std::to_string(Major) + "." + std::to_string(Minor);
+}
 namespace Util {
 inline std::string U32ToUtf8(const std::u32string &s) {
     return std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(s);
