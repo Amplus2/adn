@@ -44,14 +44,21 @@ constexpr inline bool IsWhitespace(char32_t c) {
            (c >= 0x2000 && c <= 0x200C) || c == 0x2028 || c == 0x2029 || c == 0x202F ||
            c == 0x205F || c == 0x3000 || c == 0xFEFF;
 }
-/// checks if `c` is valid as an identifier char except the first one
-constexpr inline bool IsIdentifierChar(char32_t c) {
-    return !IsWhitespace(c) && c != '(' && c != ')' && c != '[' && c != ']' && c != '{' &&
-           c != '}' && c != '#';
+constexpr inline bool IsTerminator(char32_t c) {
+    return IsWhitespace(c) || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' ||
+           c == '}' || c == '#' || c == '\'';
 }
-constexpr inline bool IsDigit(char32_t c) { return c >= '0' && c <= '9'; }
 constexpr inline char32_t Unescape(char32_t c) {
     return c == 'n' ? '\n' : c == 'r' ? '\r' : c == 't' ? '\t' : c;
+}
+inline void ReadToSeparator(std::u32string &tmpStr,
+                            char32_t &c,
+                            const char32_t *&s,
+                            const char32_t *&end) {
+    do {
+        tmpStr += c;
+    } while(s < end && !IsTerminator(c = *s++));
+    if(s < end) s--;
 }
 }
 using namespace Util;
@@ -84,7 +91,6 @@ enum Error {
     CharEOF = 1,
     StringEOF = 2,
     FloatEOF = 4,
-    FloatNotNumber = 8,
 };
 
 class Token {
@@ -114,7 +120,6 @@ inline Token Next(const char32_t *&s, const char32_t *end) {
     std::u32string tmpStr;
 
     switch(c = *s++) {
-            // handle parentheses and brackets
         case '(': return Token(ParenLeft);
         case ')': return Token(ParenRight);
         case '[': return Token(BracketLeft);
@@ -138,6 +143,7 @@ inline Token Next(const char32_t *&s, const char32_t *end) {
             return Token(Comment, tmpStr);
         case '-':
             tmpStr += '-';
+            if(s >= end) return Token(Error, U"", FloatEOF);
             c = *s++;
             [[fallthrough]];
         case '+': [[fallthrough]];
@@ -151,37 +157,14 @@ inline Token Next(const char32_t *&s, const char32_t *end) {
         case '7': [[fallthrough]];
         case '8': [[fallthrough]];
         case '9':
-            // handle integers and front half of floats
-            // TODO: hex, bin and oct numbers
-            do {
-                tmpStr += c;
-            } while(s < end && IsDigit((c = *s++)));
-            if(s >= end) return Token(Int, tmpStr);
-            if(c != '.') {
-                s--;
-                return Token(Int, tmpStr);
-            }
-            [[fallthrough]];
+            ReadToSeparator(tmpStr, c, s, end);
+            return tmpStr.find('.') == std::u32string::npos ? Token(Int, tmpStr)
+                   : tmpStr.back() == '.'                   ? Token(Error, tmpStr, FloatEOF)
+                                                            : Token(Float, tmpStr);
         case '.':
-            // handle back half of floats
-            tmpStr += '.';
-            c = *s++;
-            if(IsDigit(c) && s <= end) {
-                do {
-                    tmpStr += c;
-                } while(s < end && IsDigit(c = *s++));
-                if(s < end) s--;
-                return Token(Float, tmpStr);
-            } else
-                return s > end ? Token(Error, U"", FloatEOF)
-                               : Token(Error, std::u32string() + c, FloatNotNumber);
-        default:
-            // handle identifiers
-            do {
-                tmpStr += c;
-            } while(s < end && IsIdentifierChar(c = *s++));
-            if(s < end) s--;
-            return Token(Id, tmpStr);
+            ReadToSeparator(tmpStr, c, s, end);
+            return tmpStr.size() == 1 ? Token(Error, U"", FloatEOF) : Token(Float, tmpStr);
+        default: ReadToSeparator(tmpStr, c, s, end); return Token(Id, tmpStr);
     }
 }
 
@@ -234,7 +217,7 @@ class Element {
     char32_t c;
     inline Element(enum Type t, enum Error e = None) : type(t), err(e) {}
     inline std::string to_string() const {
-        std::string s = std::string() + std::to_string(type) + " (" + std::to_string(err) +
+        std::string s = std::to_string(type) + " (" + std::to_string(err) +
                         "): " + StringMul("#", hashes) + StringMul("'", quotes);
         switch(type) {
             case Error: break;
@@ -330,6 +313,7 @@ inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
             e.str = t.value;
             return e;
         case Lexer::Int:
+            // TODO: support for other number systems? read std::stoll docs?
             e.type = Int;
             e.i = std::stoll(std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(
                     t.value));
