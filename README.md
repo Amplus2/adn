@@ -9,6 +9,8 @@ path and include it, then you can make use of the Lexer and Parser:
 
 ```cpp
 #include <adn.hh>
+#include <cassert>
+#include <iostream>
 
 void main() {
     auto tokens = Adn::Lexer::Lex(U"(1 2 3)");
