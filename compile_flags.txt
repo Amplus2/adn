@@ -1,4 +1,4 @@
 -Wall
 -Wextra
 -pedantic
--std=c++2a
+-std=c++1z

@@ -212,9 +212,11 @@ class Element {
     std::vector<Element> vec;
     // this is HORRIBLE, but we can't use std::map
     std::vector<std::pair<Element, Element>> map;
-    int_fast64_t i;
-    double d;
-    char32_t c;
+    union {
+        int_fast64_t i;
+        double d;
+        char32_t c;
+    };
     inline Element(enum Type t, enum Error e = None) : type(t), err(e) {}
     inline std::string to_string() const {
         std::string s = std::to_string(type) + " (" + std::to_string(err) +
