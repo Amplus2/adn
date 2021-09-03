@@ -18,8 +18,8 @@ c++ -I/path/to/adn example.cc
 Then you can make use of the Lexer and Parser:
 
 ```cpp
-auto tokens = Adn::Lexer::lex(U"(1 2 3)");
-auto elements = Adn::Parser::parse(tokens);
+auto tokens = Adn::Lexer::Lex(U"(1 2 3)");
+auto elements = Adn::Parser::Parse(tokens);
 for(auto list : elements) {
     assert(list.type == Adn::Parser::List);
     for(auto element : list.vec) {
