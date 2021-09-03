@@ -10,4 +10,5 @@ jobs:
       - run: make -j$(nproc) test
       - uses: pixelcmtd/markdown-doctest-action@v0.1
         with:
+            compiler: c++
             flags: -I. -Wall -Wextra -std=c++17 -pedantic
