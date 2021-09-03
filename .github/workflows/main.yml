@@ -10,4 +10,4 @@ jobs:
       - run: make -j$(nproc) test
       - uses: pixelcmtd/markdown-doctest-action@v0.1
         with:
-            flags: -I. -Wall -Wextra -c++17 -pedantic
+            flags: -I. -Wall -Wextra -std=c++17 -pedantic
