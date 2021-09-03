@@ -12,7 +12,7 @@ path and include it, then you can make use of the Lexer and Parser:
 #include <cassert>
 #include <iostream>
 
-void main() {
+int main() {
     auto tokens = Adn::Lexer::Lex(U"(1 2 3)");
     auto elements = Adn::Parser::Parse(tokens);
     for(auto list : elements) {
@@ -22,6 +22,7 @@ void main() {
             std::cout << element.i << std::endl;
         }
     }
+    return 0;
 }
 ```
 
