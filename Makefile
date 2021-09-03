@@ -1,5 +1,5 @@
 CXX = c++
-CXXFLAGS = -std=c++2a -Og -g -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined
+CXXFLAGS = -std=c++1z -Og -g -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined
 DB ?= lldb
 
 all: format test
