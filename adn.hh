@@ -249,13 +249,12 @@ class Element {
  * Increments `ts` by the length of the token.
  */
 inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
-    Element e(EndOfFile);
-    if(ts >= end) return e;
+    if(ts >= end) return Element(EndOfFile);
     Lexer::Token t = *ts++;
     switch(t.type) {
         case Lexer::Error: return Element(Error, LexerError);
-        case Lexer::ParenLeft:
-            e = Element(List);
+        case Lexer::ParenLeft: {
+            Element e(List);
             do {
                 if((*ts).type == Lexer::ParenRight) {
                     ts++;
@@ -265,8 +264,9 @@ inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
             } while(e.vec.back().type != EndOfFile);
             e.err = UnmatchedParens;
             return e;
-        case Lexer::BracketLeft:
-            e.type = Vector;
+        }
+        case Lexer::BracketLeft: {
+            Element e(Vector);
             do {
                 if((*ts).type == Lexer::BracketRight) {
                     ts++;
@@ -276,8 +276,9 @@ inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
             } while(e.vec.back().type != EndOfFile);
             e.err = UnmatchedBrackets;
             return e;
-        case Lexer::CurlyLeft:
-            e.type = Map;
+        }
+        case Lexer::CurlyLeft: {
+            Element e(Map);
             while(ts <= end) {
                 if((*ts).type == Lexer::CurlyRight) {
                     ts++;
@@ -297,44 +298,53 @@ inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
                 e.map.push_back({key, value});
             }
             return e;
+        }
         case Lexer::ParenRight: return Element(Error, UnmatchedParens);
         case Lexer::BracketRight: return Element(Error, UnmatchedBrackets);
         case Lexer::CurlyRight: return Element(Error, UnmatchedCurlies);
-        case Lexer::Hash:
-            e = Next(ts, end);
+        case Lexer::Hash: {
+            Element e = Next(ts, end);
             e.hashes++;
             return e;
-        case Lexer::SingleQuote:
-            e = Next(ts, end);
+        }
+        case Lexer::SingleQuote: {
+            Element e = Next(ts, end);
             e.quotes++;
             return e;
-        case Lexer::Id:
-            e.type = Id;
+        }
+        case Lexer::Id: {
+            Element e(Id);
             e.str = t.value;
             return e;
-        case Lexer::Int:
+        }
+        case Lexer::Int: {
             // TODO: support for other number systems? read std::stoll docs?
-            e.type = Int;
+            Element e(Int);
             e.i = std::stoll(std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(
                     t.value));
             return e;
-        case Lexer::Float:
-            e.type = Float;
+        }
+        case Lexer::Float: {
+            Element e(Float);
             e.d = std::stod(std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(
                     t.value));
             return e;
-        case Lexer::Char:
-            e.type = Char;
+        }
+        case Lexer::Char: {
+            Element e(Char);
             e.c = t.value[0];
             return e;
-        case Lexer::String:
-            e.type = String;
+        }
+        case Lexer::String: {
+            Element e(String);
             e.str = t.value;
             return e;
-        case Lexer::Comment:
-            e.type = Comment;
+        }
+        case Lexer::Comment: {
+            Element e(Comment);
             e.str = t.value;
             return e;
+        }
         case Lexer::EndOfFile: return Element(EndOfFile);
     }
 }
