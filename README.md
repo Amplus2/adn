@@ -26,7 +26,7 @@ int main() {
 }
 ```
 
-```sh
+``` sh
 c++ -I/path/to/adn example.cc -o example
 ./example
 ```
