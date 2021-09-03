@@ -57,8 +57,8 @@ inline void ReadToSeparator(std::u32string &tmpStr,
                             const char32_t *&end) {
     do {
         tmpStr += c;
-    } while(s < end && !IsTerminator(c = *s++));
-    if(s < end) s--;
+    } while(s <= end && !IsTerminator(c = *s++));
+    if(s <= end) s--;
 }
 }
 using namespace Util;
