@@ -10,7 +10,7 @@ path and include it, then you can make use of the Lexer and Parser:
 ```cpp
 #include <adn.hh>
 
-int main() {
+void main() {
     auto tokens = Adn::Lexer::Lex(U"(1 2 3)");
     auto elements = Adn::Parser::Parse(tokens);
     for(auto list : elements) {
