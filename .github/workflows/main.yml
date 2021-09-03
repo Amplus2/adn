@@ -8,3 +8,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make -j$(nproc) test
+      - uses: pixelcmtd/markdown-doctest-action@v0.1
+        with:
+            flags: -I. -Wall -Wextra -c++17 -pedantic
