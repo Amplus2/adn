@@ -250,6 +250,7 @@ class Element {
  * Parses the next `Element` out of the buffer `ts` with the end pointer `end`.
  * Increments `ts` by the length of the token.
  */
+// TODO: check if this somehow can return nothing (according to gh actions it can)
 inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
     if(ts >= end) return Element(EndOfFile);
     Lexer::Token t = *ts++;
@@ -361,6 +362,7 @@ inline std::vector<Element> Parse(const std::vector<Lexer::Token> tokens) {
     do {
         elements.push_back(Next(ts, end));
     } while(elements.back().type != EndOfFile);
+    elements.pop_back();
     return elements;
 }
 }
