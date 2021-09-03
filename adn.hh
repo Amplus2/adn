@@ -26,9 +26,9 @@
 namespace {
 namespace Adn {
 namespace Version {
-const int Major = 0;
-const int Minor = 0;
-const std::string Pretty = std::to_string(Major) + "." + std::to_string(Minor);
+inline static const int Major = 0;
+inline static const int Minor = 0;
+inline static const std::string Pretty = std::to_string(Major) + "." + std::to_string(Minor);
 }
 namespace Util {
 inline std::string U32ToUtf8(const std::u32string &s) {
