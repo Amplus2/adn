@@ -20,6 +20,7 @@
 #pragma once
 #include <codecvt>
 #include <locale>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -98,7 +99,7 @@ class Token {
     enum Type type;
     enum Error err;
     std::u32string value;
-    inline Token(enum Type t, std::u32string v = U"", enum Error e = None)
+    inline Token(enum Type t, const std::u32string &v = U"", enum Error e = None)
             : type(t), err(e), value(v) {}
     inline std::string to_string() const {
         return std::string() + std::to_string(type) + " (" + std::to_string(err) +
@@ -171,7 +172,7 @@ inline Token Next(const char32_t *&s, const char32_t *end) {
 /**
  * A simplified API: calls `Next` until it gets an EOF and returns all tokens
  */
-inline std::vector<Token> Lex(const std::u32string str) {
+inline std::vector<Token> Lex(const std::u32string &str) {
     const char32_t *s = str.c_str();
     const char32_t *end = s + str.size();
     std::vector<Token> tokens;
@@ -231,15 +232,15 @@ class Element {
             case Char: s += U32ToUtf8(std::u32string(1, c)); break;
             case List: [[fallthrough]];
             case Vector:
-                for(Element e : vec) {
-                    s += "(" + e.to_string() + ") ";
-                }
+                s = std::accumulate(vec.begin(), vec.end(), s, [](auto s, auto e) {
+                    return s + "(" + e.to_string() + ") ";
+                });
                 if(!vec.empty()) s.pop_back();
                 break;
             case Map:
-                for(auto p : map) {
-                    s += "(" + p.first.to_string() + ") : (" + p.second.to_string() + ") ";
-                }
+                s = std::accumulate(map.begin(), map.end(), s, [](auto s, auto p) {
+                    return s + "(" + p.first.to_string() + ") : (" + p.second.to_string() + ") ";
+                });
                 if(!map.empty()) s.pop_back();
                 break;
         }
@@ -355,7 +356,7 @@ inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
 /**
  * A simplified API: calls `Next` until it gets an EOF and returns all elements
  */
-inline std::vector<Element> Parse(const std::vector<Lexer::Token> tokens) {
+inline std::vector<Element> Parse(const std::vector<Lexer::Token> &tokens) {
     const Lexer::Token *ts = &tokens[0];
     const Lexer::Token *end = ts + tokens.size();
     std::vector<Element> elements;
