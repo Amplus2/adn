@@ -32,9 +32,7 @@ inline static const int Minor = 0;
 inline static const std::string Pretty = std::to_string(Major) + "." + std::to_string(Minor);
 }
 namespace Util {
-inline std::string U32ToUtf8(const std::u32string &s) {
-    return std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>().to_bytes(s);
-}
+inline static auto Utf32 = std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>();
 inline std::string StringMul(const std::string &s, unsigned n) {
     std::string o;
     while(n--) o += s;
@@ -104,7 +102,7 @@ class Token {
             : type(t), err(e), value(v) {}
     inline std::string to_string() const {
         return std::string() + std::to_string(type) + " (" + std::to_string(err) +
-               "): " + U32ToUtf8(value);
+               "): " + Utf32.to_bytes(value);
     }
 };
 
@@ -192,9 +190,9 @@ enum Type {
     Float = Lexer::Float,
     Char = Lexer::Char,
     String = Lexer::String,
-    List,
-    Vector,
-    Map,
+    List = Lexer::ParenLeft,
+    Vector = Lexer::BracketLeft,
+    Map = Lexer::CurlyLeft,
     Comment = Lexer::Comment,
     EndOfFile = Lexer::EndOfFile,
 };
@@ -228,10 +226,10 @@ class Element {
             case Error: break;
             case EndOfFile: break;
             case Id: [[fallthrough]];
-            case String: s += '"' + U32ToUtf8(str) + '"'; break;
+            case String: s += '"' + Utf32.to_bytes(str) + '"'; break;
             case Int: s += std::to_string(i); break;
             case Float: s += std::to_string(d); break;
-            case Char: s += U32ToUtf8(std::u32string(1, c)); break;
+            case Char: s += Utf32.to_bytes(std::u32string(1, c)); break;
             case List: [[fallthrough]];
             case Vector:
                 s = std::accumulate(vec.begin(), vec.end(), s, [](auto s, auto e) {
