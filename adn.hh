@@ -47,7 +47,7 @@ constexpr inline bool IsWhitespace(char32_t c) {
 }
 constexpr inline bool IsTerminator(char32_t c) {
     return IsWhitespace(c) || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' ||
-           c == '}' || c == '#' || c == '\'';
+           c == '}' || c == '#' || c == '\'' || c == '`';
 }
 constexpr inline char32_t Unescape(char32_t c) {
     return c == 'n' ? '\n' : c == 'r' ? '\r' : c == 't' ? '\t' : c;
@@ -76,14 +76,15 @@ enum Type {
 
     Hash = 7,
     SingleQuote = 8,
+    Backtick = 9,
 
-    Id = 9,
-    Int = 10,    // [0-9]+
-    Float = 11,  // [0-9]*'.'[0-9]+
-    Char = 12,   // '\\'.
-    String = 13, // '"'.*?'"'
+    Id = 10,
+    Int = 11,    // [0-9]+
+    Float = 12,  // [0-9]*'.'[0-9]+
+    Char = 13,   // '\\'.
+    String = 14, // '"'.*?'"'
 
-    Comment = 14,
+    Comment = 15,
     EndOfFile = 0xff,
 };
 
@@ -129,6 +130,7 @@ inline Token Next(const char32_t *&s, const char32_t *end) {
         case '}': return Token(CurlyRight);
         case '#': return Token(Hash);
         case '\'': return Token(SingleQuote);
+        case '`': return Token(Backtick);
         case '\\':
             if(s >= end) Token(Error, U"", CharEOF);
             return Token(Char, std::u32string(1, *s++));
@@ -208,7 +210,7 @@ class Element {
     public:
     enum Type type;
     enum Error err;
-    uint_fast8_t quotes = 0, hashes = 0;
+    uint_fast8_t hashes = 0, quotes = 0, backquotes = 0;
     std::u32string str;
     std::vector<Element> vec;
     // this is HORRIBLE, but we can't use std::map
@@ -314,6 +316,11 @@ inline Element Next(const Lexer::Token *&ts, const Lexer::Token *end) {
         case Lexer::SingleQuote: {
             Element e = Next(ts, end);
             e.quotes++;
+            return e;
+        }
+        case Lexer::Backtick: {
+            Element e = Next(ts, end);
+            e.backquotes++;
             return e;
         }
         case Lexer::Id: {

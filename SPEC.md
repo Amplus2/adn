@@ -22,4 +22,10 @@ In programming languages from the LISP family, it has been practice for a long
 time to use a `'` to distinguish between calling a function and creating a list.
 Additionally, languages like Clojure use `#` to distinguish between certain data
 types. These behaviors are supported by adn, as `'` and `#` are distinct Lexer
-Tokens and added to the next Parser Element.
+Tokens and added to the next Parser Element. Additionally, we support backquotes
+(\`) in the same way, as many LISPs also use those. We currently don't have a
+specific unquote character, using `,` would go against treating it as
+whitespace, Clojure for example uses `~` instead. If you need unquoting in your
+`adn`-based LISP, use an `unquote` function and maybe consider hashed ids
+unquoted. If you are really invested in making `adn` unquotes happen, feel free
+to open a GitHub issue.
