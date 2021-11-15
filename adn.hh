@@ -225,6 +225,7 @@ class Element {
         switch(type) {
             case Error: break;
             case EndOfFile: break;
+            case Comment: [[fallthrough]];
             case Id: [[fallthrough]];
             case String: s += '"' + Utf32.to_bytes(str) + '"'; break;
             case Int: s += std::to_string(i); break;
