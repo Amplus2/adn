@@ -1,9 +1,11 @@
 # adn
+
 The best data serialization format is a modified version of edn.
 
 We have a [very brief spec](SPEC.md) and an almost complete implementation.
 
 ## Usage
+
 To use the adn Reference Implementation, you just have to put it in your include
 path and include it, then you can make use of the Lexer and Parser:
 
@@ -26,7 +28,7 @@ int main() {
 }
 ```
 
-``` sh
+```sh
 c++ -I/path/to/adn example.cc -o example
 ./example
 ```
